@@ -1,240 +1,2318 @@
-(() => {
-  "use strict";
+import * as THREE from "three";
 
-  const CONFIG = {
-    autoAdvanceBuffer: 850,
-    interactionFallback: 11000,
-    holdDuration: 1450,
-    dragDistance: 125
-  };
 
-  const state = {
-    started: false,
-    current: 0,
-    advancing: false,
-    interactionDone: false,
-    fallbackTimer: null,
-    holdTimer: null,
-    holdStarted: 0
-  };
+/* =========================================================
+   ASSETS
+========================================================= */
 
-  const scenes = [...document.querySelectorAll(".scene[data-scene]")];
-  const gate = document.getElementById("gate");
-  const startButton = document.getElementById("startButton");
-  const music = document.getElementById("music");
-  const progressBar = document.getElementById("progressBar");
-  const sceneNumber = document.getElementById("sceneNumber");
-  const lightButton = document.getElementById("lightButton");
-  const dragTarget = document.getElementById("dragTarget");
-  const finalButton = document.getElementById("finalButton");
-  const finalMessage = document.getElementById("finalMessage");
+const PHOTO_URLS = [
+    "https://raw.githubusercontent.com/lightwahane/ana.github.io/refs/heads/main/photo1.jpg",
+    "https://raw.githubusercontent.com/lightwahane/ana.github.io/refs/heads/main/photo2.jpg",
+    "https://raw.githubusercontent.com/lightwahane/ana.github.io/refs/heads/main/photo3.JPG"
+];
 
-  // ---------- Star field ----------
-  const canvas = document.getElementById("stars");
-  const ctx = canvas.getContext("2d", { alpha: true });
-  let stars = [];
-  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+const MUSIC_URL =
+    "https://github.com/lightwahane/meow.github.io/raw/refs/heads/main/love.mp3";
 
-  function resizeCanvas() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = innerWidth * dpr;
-    canvas.height = innerHeight * dpr;
-    canvas.style.width = innerWidth + "px";
-    canvas.style.height = innerHeight + "px";
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    stars = Array.from({ length: Math.min(150, Math.floor(innerWidth / 3.2)) }, () => ({
-      x: Math.random() * innerWidth,
-      y: Math.random() * innerHeight,
-      r: Math.random() * 1.35 + .2,
-      a: Math.random() * .65 + .2,
-      s: Math.random() * .08 + .015
-    }));
-  }
 
-  function drawStars(t = 0) {
-    ctx.clearRect(0, 0, innerWidth, innerHeight);
-    for (const s of stars) {
-      s.y -= s.s;
-      if (s.y < -5) s.y = innerHeight + 5;
-      const twinkle = s.a + Math.sin(t * .001 + s.x) * .12;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 215, 238, ${Math.max(.05, twinkle)})`;
-      ctx.fill();
+/* =========================================================
+   MEMORY CONTENT
+========================================================= */
+
+const MEMORIES = [
+    {
+        title: "before I knew",
+        description:
+            "Some moments don't announce themselves. You only realize later that you wanted to keep them forever."
+    },
+
+    {
+        title: "somewhere in between",
+        description:
+            "There are thousands of ordinary moments. Somehow, the ones with you never feel ordinary."
+    },
+
+    {
+        title: "and then there was you",
+        description:
+            "I could probably explain a hundred things about us. The important part is that I don't need to."
     }
-    requestAnimationFrame(drawStars);
-  }
-  resizeCanvas();
-  addEventListener("resize", resizeCanvas);
-  requestAnimationFrame(drawStars);
+];
 
-  // ---------- Scene controller ----------
-  function setActive(index) {
-    scenes.forEach((scene, i) => scene.classList.toggle("active", i === index));
-    state.current = index;
-    state.interactionDone = false;
-    sceneNumber.textContent = String(index + 1).padStart(2, "0");
-    progressBar.style.width = `${((index + 1) / scenes.length) * 100}%`;
-    clearTimeout(state.fallbackTimer);
 
-    const scene = scenes[index];
-    const requiresInteraction = scene.dataset.requiresInteraction === "true";
-    if (requiresInteraction) {
-      state.fallbackTimer = setTimeout(() => {
-        if (!state.interactionDone && index !== scenes.length - 1) {
-          completeInteraction();
-        }
-      }, CONFIG.interactionFallback);
+/* =========================================================
+   DOM
+========================================================= */
+
+const canvas =
+    document.getElementById("universe");
+
+const intro =
+    document.getElementById("intro");
+
+const scannerMessage =
+    document.getElementById("scannerMessage");
+
+const memoryUI =
+    document.getElementById("memoryUI");
+
+const photoHint =
+    document.getElementById("photoHint");
+
+const finalSection =
+    document.getElementById("finalSection");
+
+const ending =
+    document.getElementById("ending");
+
+const statusText =
+    document.getElementById("statusText");
+
+const memoryTitle =
+    document.getElementById("memoryTitle");
+
+const memoryDescription =
+    document.getElementById("memoryDescription");
+
+const currentMemory =
+    document.getElementById("currentMemory");
+
+const memoryButtons =
+    document.querySelectorAll(".memory-button");
+
+const soundButton =
+    document.getElementById("soundButton");
+
+const soundText =
+    document.getElementById("soundText");
+
+const holdButton =
+    document.getElementById("holdButton");
+
+const holdProgress =
+    document.querySelector(".hold-progress");
+
+const restartButton =
+    document.getElementById("restartButton");
+
+
+/* =========================================================
+   AUDIO
+========================================================= */
+
+const audio =
+    new Audio(MUSIC_URL);
+
+audio.loop = true;
+
+audio.volume = 0.35;
+
+let musicPlaying = false;
+
+
+function startMusic() {
+
+    if (musicPlaying) {
+        return;
+    }
+
+    audio.play()
+        .then(() => {
+
+            musicPlaying = true;
+
+            soundText.textContent = "sound on";
+
+        })
+        .catch(() => {
+
+            soundText.textContent = "tap sound";
+
+        });
+}
+
+
+soundButton.addEventListener("click", (event) => {
+
+    event.stopPropagation();
+
+    if (!musicPlaying) {
+
+        startMusic();
+
+        return;
+    }
+
+    if (audio.paused) {
+
+        audio.play();
+
+        soundText.textContent = "sound on";
+
     } else {
-      const duration = Number(scene.dataset.duration || 0);
-      if (duration > 0) {
-        state.fallbackTimer = setTimeout(() => nextScene(), duration + CONFIG.autoAdvanceBuffer);
-      }
+
+        audio.pause();
+
+        soundText.textContent = "sound off";
     }
-  }
 
-  function nextScene() {
-    if (!state.started || state.advancing || state.current >= scenes.length - 1) return;
-    state.advancing = true;
-    const next = state.current + 1;
-    scenes[next].scrollIntoView({ behavior: "smooth", block: "start" });
-    setTimeout(() => {
-      setActive(next);
-      state.advancing = false;
-    }, 650);
-  }
+});
 
-  function completeInteraction() {
-    state.interactionDone = true;
-    clearTimeout(state.fallbackTimer);
-    if (state.current === 2) {
-      lightButton.closest(".scene").classList.add("touched");
-      lightButton.animate([
-        { transform: "scale(1)" },
-        { transform: "scale(1.28)" },
-        { transform: "scale(.9)" },
-        { transform: "scale(1)" }
-      ], { duration: 1100, easing: "cubic-bezier(.16,1,.3,1)" });
-      setTimeout(nextScene, 900);
-    } else if (state.current === 5) {
-      scenes[5].classList.add("uncovered");
-      setTimeout(nextScene, 1500);
+
+document.addEventListener(
+    "pointerdown",
+    () => {
+
+        startMusic();
+
+    },
+    {
+        once: true
     }
-  }
+);
 
-  // ---------- Music gate ----------
-  startButton.addEventListener("click", async () => {
-    startButton.disabled = true;
+
+/* =========================================================
+   THREE.JS SETUP
+========================================================= */
+
+const scene =
+    new THREE.Scene();
+
+
+const camera =
+    new THREE.PerspectiveCamera(
+        50,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        100
+    );
+
+
+camera.position.z = 8;
+
+
+const renderer =
+    new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance"
+    });
+
+
+renderer.setPixelRatio(
+    Math.min(window.devicePixelRatio, 2)
+);
+
+
+renderer.setSize(
+    window.innerWidth,
+    window.innerHeight
+);
+
+
+renderer.outputColorSpace =
+    THREE.SRGBColorSpace;
+
+
+/* =========================================================
+   PARTICLE CONFIG
+========================================================= */
+
+const isMobile =
+    window.innerWidth < 700;
+
+
+const PARTICLE_COUNT =
+    isMobile ? 15000 : 26000;
+
+
+const CLOUD_RADIUS =
+    isMobile ? 6.8 : 8.5;
+
+
+const cloudPositions =
+    new Float32Array(
+        PARTICLE_COUNT * 3
+    );
+
+
+const targetPositions =
+    new Float32Array(
+        PARTICLE_COUNT * 3
+    );
+
+
+const randomValues =
+    new Float32Array(
+        PARTICLE_COUNT * 4
+    );
+
+
+/* =========================================================
+   CREATE COSMIC CLOUD
+========================================================= */
+
+for (
+    let i = 0;
+    i < PARTICLE_COUNT;
+    i++
+) {
+
+    const i3 = i * 3;
+
+    const radius =
+        Math.pow(
+            Math.random(),
+            0.55
+        ) * CLOUD_RADIUS;
+
+
+    const theta =
+        Math.random() *
+        Math.PI *
+        2;
+
+
+    const phi =
+        Math.acos(
+            2 * Math.random() - 1
+        );
+
+
+    let x =
+        radius *
+        Math.sin(phi) *
+        Math.cos(theta);
+
+
+    let y =
+        radius *
+        Math.sin(phi) *
+        Math.sin(theta);
+
+
+    let z =
+        radius *
+        Math.cos(phi);
+
+
+    /*
+     * Flatten the cloud slightly so
+     * it feels like a floating universe.
+     */
+
+    y *= 0.7;
+
+    z *= 0.75;
+
+
+    /*
+     * Add several soft spiral structures.
+     */
+
+    const spiral =
+        Math.sin(
+            theta * 3 +
+            radius * 1.2
+        );
+
+
+    x += spiral * 0.3;
+
+    y +=
+        Math.cos(
+            theta * 2 +
+            radius
+        ) * 0.2;
+
+
+    cloudPositions[i3] =
+        x;
+
+    cloudPositions[i3 + 1] =
+        y;
+
+    cloudPositions[i3 + 2] =
+        z;
+
+
+    randomValues[i * 4] =
+        Math.random();
+
+    randomValues[i * 4 + 1] =
+        Math.random();
+
+    randomValues[i * 4 + 2] =
+        Math.random();
+
+    randomValues[i * 4 + 3] =
+        Math.random();
+}
+
+
+/* =========================================================
+   IMAGE -> PARTICLE TARGET
+========================================================= */
+
+function loadImage(url) {
+
+    return new Promise(
+        (resolve, reject) => {
+
+            const image =
+                new Image();
+
+            image.crossOrigin =
+                "anonymous";
+
+            image.onload = () => {
+                resolve(image);
+            };
+
+            image.onerror =
+                reject;
+
+            image.src = url;
+        }
+    );
+}
+
+
+async function imageToParticles(url) {
+
+    const image =
+        await loadImage(url);
+
+
+    /*
+     * Small canvas keeps the effect performant.
+     */
+
+    const width =
+        isMobile ? 150 : 190;
+
+    const height =
+        Math.round(
+            width *
+            image.height /
+            image.width
+        );
+
+
+    const offscreen =
+        document.createElement("canvas");
+
+
+    offscreen.width =
+        width;
+
+    offscreen.height =
+        height;
+
+
+    const context =
+        offscreen.getContext("2d", {
+            willReadFrequently: true
+        });
+
+
+    context.drawImage(
+        image,
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    const pixels =
+        context.getImageData(
+            0,
+            0,
+            width,
+            height
+        ).data;
+
+
+    /*
+     * Build a list of useful pixels.
+     */
+
+    const visiblePixels = [];
+
+
+    for (
+        let y = 0;
+        y < height;
+        y++
+    ) {
+
+        for (
+            let x = 0;
+            x < width;
+            x++
+        ) {
+
+            const index =
+                (y * width + x) * 4;
+
+
+            const r =
+                pixels[index];
+
+            const g =
+                pixels[index + 1];
+
+            const b =
+                pixels[index + 2];
+
+            const a =
+                pixels[index + 3];
+
+
+            if (a < 20) {
+                continue;
+            }
+
+
+            /*
+             * Avoid completely black
+             * invisible points.
+             */
+
+            const brightness =
+                (r + g + b) / 3;
+
+
+            if (brightness < 8) {
+                continue;
+            }
+
+
+            visiblePixels.push({
+                x,
+                y,
+                brightness,
+                r,
+                g,
+                b
+            });
+        }
+    }
+
+
+    const result =
+        new Float32Array(
+            PARTICLE_COUNT * 3
+        );
+
+
+    const imageAspect =
+        width / height;
+
+
+    /*
+     * The image lives in the center
+     * of the particle universe.
+     */
+
+    const imageHeight =
+        isMobile ? 4.2 : 4.8;
+
+    const imageWidth =
+        imageHeight *
+        imageAspect;
+
+
+    const scale =
+        imageWidth > 7
+            ? 7 / imageWidth
+            : 1;
+
+
+    const finalWidth =
+        imageWidth * scale;
+
+    const finalHeight =
+        imageHeight * scale;
+
+
+    for (
+        let i = 0;
+        i < PARTICLE_COUNT;
+        i++
+    ) {
+
+        const i3 =
+            i * 3;
+
+
+        /*
+         * Choose a visible image pixel.
+         */
+
+        const pixel =
+            visiblePixels[
+                Math.floor(
+                    Math.random() *
+                    visiblePixels.length
+                )
+            ];
+
+
+        const px =
+            pixel.x / (width - 1);
+
+        const py =
+            pixel.y / (height - 1);
+
+
+        /*
+         * Center image around 0,0.
+         */
+
+        const x =
+            (px - 0.5) *
+            finalWidth;
+
+
+        const y =
+            (0.5 - py) *
+            finalHeight;
+
+
+        /*
+         * Give every particle a tiny
+         * amount of depth.
+         */
+
+        const brightness =
+            pixel.brightness / 255;
+
+
+        const depth =
+            (
+                Math.random() -
+                0.5
+            ) *
+            0.45;
+
+
+        result[i3] =
+            x;
+
+        result[i3 + 1] =
+            y;
+
+        result[i3 + 2] =
+            depth +
+            brightness * 0.15;
+    }
+
+
+    return result;
+}
+
+
+/* =========================================================
+   INITIAL TARGET
+========================================================= */
+
+for (
+    let i = 0;
+    i < PARTICLE_COUNT * 3;
+    i++
+) {
+
+    targetPositions[i] =
+        cloudPositions[i] +
+        (
+            Math.random() -
+            0.5
+        ) *
+        0.3;
+}
+
+
+/* =========================================================
+   GEOMETRY
+========================================================= */
+
+const geometry =
+    new THREE.BufferGeometry();
+
+
+geometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(
+        cloudPositions,
+        3
+    )
+);
+
+
+geometry.setAttribute(
+    "aCloud",
+    new THREE.BufferAttribute(
+        cloudPositions,
+        3
+    )
+);
+
+
+geometry.setAttribute(
+    "aTarget",
+    new THREE.BufferAttribute(
+        targetPositions,
+        3
+    )
+);
+
+
+geometry.setAttribute(
+    "aRandom",
+    new THREE.BufferAttribute(
+        randomValues,
+        4
+    )
+);
+
+
+/* =========================================================
+   SHADER
+========================================================= */
+
+const vertexShader = `
+
+uniform float uTime;
+uniform float uReveal;
+uniform vec2 uMouse;
+uniform float uPixelRatio;
+
+attribute vec3 aCloud;
+attribute vec3 aTarget;
+attribute vec4 aRandom;
+
+varying float vReveal;
+varying float vRandom;
+
+void main() {
+
+    vec3 cloud =
+        aCloud;
+
+    vec3 target =
+        aTarget;
+
+
+    /*
+     * Slowly rotate the cloud.
+     */
+
+    float angle =
+        uTime * 0.018;
+
+    float cosA =
+        cos(angle);
+
+    float sinA =
+        sin(angle);
+
+
+    vec3 rotatedCloud;
+
+    rotatedCloud.x =
+        cloud.x * cosA -
+        cloud.z * sinA;
+
+    rotatedCloud.z =
+        cloud.x * sinA +
+        cloud.z * cosA;
+
+    rotatedCloud.y =
+        cloud.y;
+
+
+    cloud =
+        rotatedCloud;
+
+
+    /*
+     * Project target position so
+     * we can compare it with the cursor.
+     */
+
+    vec4 targetClip =
+        projectionMatrix *
+        modelViewMatrix *
+        vec4(target, 1.0);
+
+
+    vec2 targetScreen =
+        targetClip.xy /
+        targetClip.w;
+
+
+    float distanceFromMouse =
+        distance(
+            targetScreen,
+            uMouse
+        );
+
+
+    /*
+     * Cursor scanning radius.
+     */
+
+    float scan =
+        1.0 -
+        smoothstep(
+            0.0,
+            0.42,
+            distanceFromMouse
+        );
+
+
+    /*
+     * Global reveal + local scanner.
+     */
+
+    float reveal =
+        max(
+            uReveal,
+            scan
+        );
+
+
+    /*
+     * Add a tiny amount of
+     * particle instability.
+     */
+
+    float noise =
+        sin(
+            uTime * 0.7 +
+            aRandom.x * 30.0
+        ) *
+        0.025;
+
+
+    vec3 finalPosition =
+        mix(
+            cloud,
+            target,
+            reveal
+        );
+
+
+    finalPosition.z +=
+        noise;
+
+
+    /*
+     * Push focused particles
+     * slightly toward the viewer.
+     */
+
+    finalPosition.z +=
+        scan * 0.25;
+
+
+    vec4 mvPosition =
+        modelViewMatrix *
+        vec4(
+            finalPosition,
+            1.0
+        );
+
+
+    float size =
+        1.0 +
+        aRandom.y * 1.8;
+
+
+    size +=
+        scan * 3.5;
+
+
+    gl_PointSize =
+        size *
+        uPixelRatio *
+        (6.0 / -mvPosition.z);
+
+
+    gl_Position =
+        projectionMatrix *
+        mvPosition;
+
+
+    vReveal =
+        reveal;
+
+    vRandom =
+        aRandom.x;
+}
+`;
+
+
+const fragmentShader = `
+
+uniform float uTime;
+
+varying float vReveal;
+varying float vRandom;
+
+void main() {
+
+    vec2 uv =
+        gl_PointCoord -
+        0.5;
+
+
+    float distanceFromCenter =
+        length(uv);
+
+
+    if (
+        distanceFromCenter >
+        0.5
+    ) {
+        discard;
+    }
+
+
+    /*
+     * Soft particle glow.
+     */
+
+    float glow =
+        1.0 -
+        smoothstep(
+            0.05,
+            0.5,
+            distanceFromCenter
+        );
+
+
+    /*
+     * Mostly pink/purple,
+     * with occasional white particles.
+     */
+
+    vec3 pink =
+        vec3(
+            1.0,
+            0.30,
+            0.68
+        );
+
+
+    vec3 purple =
+        vec3(
+            0.55,
+            0.32,
+            1.0
+        );
+
+
+    vec3 white =
+        vec3(
+            1.0,
+            0.92,
+            0.98
+        );
+
+
+    vec3 color =
+        mix(
+            pink,
+            purple,
+            vRandom
+        );
+
+
+    color =
+        mix(
+            color,
+            white,
+            smoothstep(
+                0.88,
+                1.0,
+                vRandom
+            )
+        );
+
+
+    float alpha =
+        glow *
+        (
+            0.18 +
+            vReveal * 0.75
+        );
+
+
+    gl_FragColor =
+        vec4(
+            color,
+            alpha
+        );
+}
+`;
+
+
+/* =========================================================
+   MATERIAL
+========================================================= */
+
+const material =
+    new THREE.ShaderMaterial({
+
+        uniforms: {
+
+            uTime: {
+                value: 0
+            },
+
+            uReveal: {
+                value: 0
+            },
+
+            uMouse: {
+                value: new THREE.Vector2(
+                    99,
+                    99
+                )
+            },
+
+            uPixelRatio: {
+                value:
+                    Math.min(
+                        window.devicePixelRatio,
+                        2
+                    )
+            }
+
+        },
+
+        vertexShader,
+
+        fragmentShader,
+
+        transparent: true,
+
+        depthWrite: false,
+
+        blending:
+            THREE.AdditiveBlending
+    });
+
+
+/* =========================================================
+   PARTICLE SYSTEM
+========================================================= */
+
+const particles =
+    new THREE.Points(
+        geometry,
+        material
+    );
+
+
+scene.add(
+    particles
+);
+
+
+/* =========================================================
+   EXTRA STAR FIELD
+========================================================= */
+
+function createStars() {
+
+    const count =
+        isMobile
+            ? 900
+            : 1800;
+
+
+    const positions =
+        new Float32Array(
+            count * 3
+        );
+
+
+    for (
+        let i = 0;
+        i < count;
+        i++
+    ) {
+
+        const i3 =
+            i * 3;
+
+
+        const radius =
+            12 +
+            Math.random() * 20;
+
+
+        const angle =
+            Math.random() *
+            Math.PI *
+            2;
+
+
+        const vertical =
+            (
+                Math.random() -
+                0.5
+            ) * 18;
+
+
+        positions[i3] =
+            Math.cos(angle) *
+            radius;
+
+
+        positions[i3 + 1] =
+            vertical;
+
+
+        positions[i3 + 2] =
+            (
+                Math.random() -
+                0.5
+            ) * 18;
+    }
+
+
+    const starGeometry =
+        new THREE.BufferGeometry();
+
+
+    starGeometry.setAttribute(
+        "position",
+        new THREE.BufferAttribute(
+            positions,
+            3
+        )
+    );
+
+
+    const starMaterial =
+        new THREE.PointsMaterial({
+
+            color: 0xffffff,
+
+            size:
+                isMobile
+                    ? 0.025
+                    : 0.035,
+
+            transparent: true,
+
+            opacity: 0.25,
+
+            depthWrite: false,
+
+            blending:
+                THREE.AdditiveBlending
+        });
+
+
+    const stars =
+        new THREE.Points(
+            starGeometry,
+            starMaterial
+        );
+
+
+    scene.add(stars);
+
+    return stars;
+}
+
+
+const stars =
+    createStars();
+
+
+/* =========================================================
+   MOUSE
+========================================================= */
+
+const mouse =
+    new THREE.Vector2(
+        99,
+        99
+    );
+
+
+const mouseScreen =
+    new THREE.Vector2(
+        window.innerWidth / 2,
+        window.innerHeight / 2
+    );
+
+
+let hasInteracted =
+    false;
+
+
+function updateMouse(
+    clientX,
+    clientY
+) {
+
+    mouseScreen.x =
+        clientX;
+
+    mouseScreen.y =
+        clientY;
+
+
+    mouse.x =
+        (
+            clientX /
+            window.innerWidth
+        ) * 2 - 1;
+
+
+    mouse.y =
+        -(
+            clientY /
+            window.innerHeight
+        ) * 2 + 1;
+
+
+    material.uniforms.uMouse.value.copy(
+        mouse
+    );
+
+
+    hasInteracted =
+        true;
+}
+
+
+window.addEventListener(
+    "pointermove",
+    (event) => {
+
+        updateMouse(
+            event.clientX,
+            event.clientY
+        );
+
+    },
+    {
+        passive: true
+    }
+);
+
+
+/* =========================================================
+   TOUCH
+========================================================= */
+
+window.addEventListener(
+    "touchmove",
+    (event) => {
+
+        if (!event.touches.length) {
+            return;
+        }
+
+        const touch =
+            event.touches[0];
+
+
+        updateMouse(
+            touch.clientX,
+            touch.clientY
+        );
+
+    },
+    {
+        passive: true
+    }
+);
+
+
+/* =========================================================
+   FRAGMENT SCANNER
+========================================================= */
+
+const fragments =
+    document.querySelectorAll(
+        ".fragment"
+    );
+
+
+function updateFragments() {
+
+    if (!hasInteracted) {
+        return;
+    }
+
+
+    fragments.forEach(
+        (fragment) => {
+
+            const rect =
+                fragment.getBoundingClientRect();
+
+
+            const centerX =
+                rect.left +
+                rect.width / 2;
+
+
+            const centerY =
+                rect.top +
+                rect.height / 2;
+
+
+            const dx =
+                mouseScreen.x -
+                centerX;
+
+
+            const dy =
+                mouseScreen.y -
+                centerY;
+
+
+            const distance =
+                Math.sqrt(
+                    dx * dx +
+                    dy * dy
+                );
+
+
+            const revealRadius =
+                160;
+
+
+            if (
+                distance <
+                revealRadius
+            ) {
+
+                fragment.classList.add(
+                    "visible"
+                );
+
+            } else {
+
+                fragment.classList.remove(
+                    "visible"
+                );
+            }
+
+        }
+    );
+}
+
+
+/* =========================================================
+   INTRO LOGIC
+========================================================= */
+
+let introFinished =
+    false;
+
+
+setTimeout(() => {
+
+    introFinished =
+        true;
+
+    scannerMessage.classList.remove(
+        "hidden"
+    );
+
+}, 2500);
+
+
+let explorationStarted =
+    false;
+
+
+function startExploration() {
+
+    if (explorationStarted) {
+        return;
+    }
+
+
+    explorationStarted =
+        true;
+
+
+    intro.classList.remove(
+        "active"
+    );
+
+
+    scannerMessage.classList.add(
+        "hidden"
+    );
+
+
+    memoryUI.classList.add(
+        "visible"
+    );
+
+
+    photoHint.classList.remove(
+        "hide"
+    );
+
+
+    statusText.textContent =
+        "MEMORY FIELD";
+}
+
+
+window.addEventListener(
+    "pointermove",
+    () => {
+
+        if (
+            introFinished &&
+            !explorationStarted
+        ) {
+
+            startExploration();
+        }
+
+    },
+    {
+        once: true
+    }
+);
+
+
+/* =========================================================
+   MEMORY SYSTEM
+========================================================= */
+
+let selectedMemory =
+    0;
+
+
+let photoTargets =
+    [];
+
+
+async function prepareImages() {
+
     try {
-      await music.play();
-      state.started = true;
-      gate.classList.add("hidden");
-      setActive(0);
-      // Put the first scene immediately beneath the gate.
-      window.scrollTo({ top: 0, behavior: "instant" });
+
+        statusText.textContent =
+            "LOADING MEMORIES";
+
+
+        photoTargets =
+            await Promise.all(
+                PHOTO_URLS.map(
+                    (url) =>
+                        imageToParticles(url)
+                )
+            );
+
+
+        setMemory(
+            0,
+            true
+        );
+
+
+        statusText.textContent =
+            "MEMORY FIELD";
+
+
     } catch (error) {
-      startButton.disabled = false;
-      startButton.querySelector("span:last-child").textContent = "tap again to enter";
+
+        console.error(
+            "Could not load images:",
+            error
+        );
+
+
+        statusText.textContent =
+            "FIELD ERROR";
     }
-  });
+}
 
-  // ---------- Touch interaction ----------
-  lightButton.addEventListener("click", completeInteraction);
 
-  // ---------- Drag-to-reveal ----------
-  let dragStartX = null;
-  let dragStartLeft = 2;
-  let dragging = false;
+function setMemory(
+    index,
+    firstLoad = false
+) {
 
-  function updateDrag(clientX) {
-    if (dragStartX === null) return;
-    const dx = Math.max(0, Math.min(CONFIG.dragDistance, clientX - dragStartX));
-    const max = dragTarget.clientWidth - 42;
-    const left = Math.min(max, dragStartLeft + dx);
-    dragTarget.querySelector(".drag-handle").style.left = `${left}px`;
-    if (dx >= CONFIG.dragDistance * .88) completeInteraction();
-  }
-
-  dragTarget.addEventListener("pointerdown", e => {
-    dragging = true;
-    dragStartX = e.clientX;
-    dragStartLeft = parseFloat(getComputedStyle(dragTarget.querySelector(".drag-handle")).left) || 2;
-    dragTarget.setPointerCapture(e.pointerId);
-  });
-  dragTarget.addEventListener("pointermove", e => { if (dragging) updateDrag(e.clientX); });
-  dragTarget.addEventListener("pointerup", () => { dragging = false; dragStartX = null; });
-  dragTarget.addEventListener("pointercancel", () => { dragging = false; dragStartX = null; });
-  dragTarget.addEventListener("keydown", e => {
-    if (e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      completeInteraction();
+    if (
+        !photoTargets[index]
+    ) {
+        return;
     }
-  });
 
-  // ---------- Final hold ----------
-  function setHoldProgress(percent) {
-    finalButton.style.setProperty("--hold", `${Math.min(100, percent)}%`);
-  }
 
-  function startHold() {
-    if (state.current !== 7 || state.interactionDone) return;
-    state.holdStarted = performance.now();
-    clearInterval(state.holdTimer);
-    state.holdTimer = setInterval(() => {
-      const percent = ((performance.now() - state.holdStarted) / CONFIG.holdDuration) * 100;
-      setHoldProgress(percent);
-      if (percent >= 100) {
-        clearInterval(state.holdTimer);
-        state.interactionDone = true;
-        document.querySelector(".final-scene").classList.add("revealed");
-        finalMessage.setAttribute("aria-hidden", "false");
-        if (navigator.vibrate) navigator.vibrate([25, 45, 80]);
-      }
-    }, 16);
-  }
+    selectedMemory =
+        index;
 
-  function stopHold() {
-    if (state.interactionDone) return;
-    clearInterval(state.holdTimer);
-    setHoldProgress(0);
-  }
 
-  finalButton.addEventListener("pointerdown", e => {
-    e.preventDefault();
-    finalButton.setPointerCapture(e.pointerId);
-    startHold();
-  });
-  finalButton.addEventListener("pointerup", stopHold);
-  finalButton.addEventListener("pointercancel", stopHold);
-  finalButton.addEventListener("pointerleave", stopHold);
-  finalButton.addEventListener("keydown", e => {
-    if (e.key === " " || e.key === "Enter") {
-      e.preventDefault();
-      startHold();
+    const target =
+        photoTargets[index];
+
+
+    for (
+        let i = 0;
+        i < target.length;
+        i++
+    ) {
+
+        targetPositions[i] =
+            target[i];
     }
-  });
-  finalButton.addEventListener("keyup", e => {
-    if (e.key === " " || e.key === "Enter") stopHold();
-  });
 
-  // ---------- Graceful manual navigation ----------
-  let scrollLockUntil = 0;
-  const observer = new IntersectionObserver(entries => {
-    if (!state.started || Date.now() < scrollLockUntil) return;
-    const visible = entries
-      .filter(e => e.isIntersecting)
-      .sort((a,b) => b.intersectionRatio - a.intersectionRatio)[0];
-    if (!visible) return;
-    const index = scenes.indexOf(visible.target);
-    if (index !== -1 && Math.abs(index - state.current) <= 1) setActive(index);
-  }, { threshold: [.65] });
 
-  scenes.forEach(s => observer.observe(s));
+    geometry
+        .attributes
+        .aTarget
+        .needsUpdate = true;
 
-  // Wheel / swipe shouldn't fight the cinematic progression.
-  addEventListener("wheel", () => { scrollLockUntil = Date.now() + 250; }, { passive: true });
-  addEventListener("touchmove", () => { scrollLockUntil = Date.now() + 250; }, { passive: true });
 
-  // Start at gate; the story remains inaccessible until audio.play() succeeds.
-  setActive(0);
-})();
+    /*
+     * Start mostly hidden each time
+     * so the user has to discover
+     * the photograph again.
+     */
+
+    material.uniforms.uReveal.value =
+        firstLoad
+            ? 0.03
+            : 0;
+
+
+    memoryTitle.textContent =
+        MEMORIES[index].title;
+
+
+    memoryDescription.textContent =
+        MEMORIES[index].description;
+
+
+    currentMemory.textContent =
+        String(index + 1).padStart(
+            2,
+            "0"
+        );
+
+
+    memoryButtons.forEach(
+        (button, buttonIndex) => {
+
+            button.classList.toggle(
+                "active",
+                buttonIndex === index
+            );
+
+        }
+    );
+
+
+    photoHint.classList.remove(
+        "hide"
+    );
+}
+
+
+memoryButtons.forEach(
+    (button) => {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                const index =
+                    Number(
+                        button.dataset.memory
+                    );
+
+
+                setMemory(index);
+
+            }
+        );
+
+    }
+);
+
+
+/* =========================================================
+   REVEAL CONTROL
+========================================================= */
+
+let reveal =
+    0;
+
+
+let targetReveal =
+    0;
+
+
+let mouseStillTime =
+    0;
+
+
+let lastMouseX =
+    mouseScreen.x;
+
+
+let lastMouseY =
+    mouseScreen.y;
+
+
+function updateReveal() {
+
+    const dx =
+        mouseScreen.x -
+        lastMouseX;
+
+
+    const dy =
+        mouseScreen.y -
+        lastMouseY;
+
+
+    const movement =
+        Math.sqrt(
+            dx * dx +
+            dy * dy
+        );
+
+
+    if (
+        movement < 0.5
+    ) {
+
+        mouseStillTime +=
+            0.016;
+
+    } else {
+
+        mouseStillTime = 0;
+    }
+
+
+    lastMouseX =
+        mouseScreen.x;
+
+    lastMouseY =
+        mouseScreen.y;
+
+
+    /*
+     * Slowly scanning around the
+     * image gives the actual reveal.
+     */
+
+    targetReveal =
+        Math.max(
+            0,
+            targetReveal -
+            0.002
+        );
+
+
+    /*
+     * If the cursor stays around
+     * the central image, slowly reveal
+     * more of it.
+     */
+
+    const centerDistance =
+        Math.sqrt(
+            Math.pow(
+                mouse.x,
+                2
+            ) +
+            Math.pow(
+                mouse.y,
+                2
+            )
+        );
+
+
+    if (
+        centerDistance < 0.7
+    ) {
+
+        targetReveal =
+            Math.min(
+                0.22,
+                targetReveal +
+                0.0015
+            );
+    }
+
+
+    reveal +=
+        (
+            targetReveal -
+            reveal
+        ) * 0.04;
+
+
+    material.uniforms.uReveal.value =
+        reveal;
+}
+
+
+/* =========================================================
+   PHOTO DISCOVERED DETECTION
+========================================================= */
+
+let photoFullySeen =
+    false;
+
+
+function checkPhotoDiscovery() {
+
+    if (
+        photoFullySeen
+    ) {
+        return;
+    }
+
+
+    if (
+        reveal > 0.18
+    ) {
+
+        photoFullySeen =
+            true;
+
+        photoHint.classList.add(
+            "hide"
+        );
+
+
+        statusText.textContent =
+            "MEMORY FOUND";
+    }
+}
+
+
+/* =========================================================
+   FINAL SECTION TRIGGER
+========================================================= */
+
+let finalUnlocked =
+    false;
+
+
+function unlockFinal() {
+
+    if (finalUnlocked) {
+        return;
+    }
+
+
+    /*
+     * Require all three memories
+     * to have been visited.
+     */
+
+    if (
+        visitedMemories.size < 3
+    ) {
+
+        return;
+    }
+
+
+    finalUnlocked =
+        true;
+
+
+    memoryUI.classList.remove(
+        "visible"
+    );
+
+
+    photoHint.classList.add(
+        "hide"
+    );
+
+
+    scannerMessage.classList.add(
+        "hidden"
+    );
+
+
+    finalSection.classList.add(
+        "visible"
+    );
+
+
+    statusText.textContent =
+        "ONE LAST THING";
+}
+
+
+/* =========================================================
+   TRACK VISITED MEMORIES
+========================================================= */
+
+const visitedMemories =
+    new Set();
+
+
+function markMemoryVisited() {
+
+    if (
+        reveal > 0.15
+    ) {
+
+        visitedMemories.add(
+            selectedMemory
+        );
+    }
+
+
+    if (
+        visitedMemories.size === 3
+    ) {
+
+        setTimeout(
+            unlockFinal,
+            800
+        );
+    }
+}
+
+
+/* =========================================================
+   HOLD BUTTON
+========================================================= */
+
+let holdTimer =
+    null;
+
+
+let holdStart =
+    0;
+
+
+let isHolding =
+    false;
+
+
+const HOLD_DURATION =
+    3000;
+
+
+function startHold() {
+
+    if (isHolding) {
+        return;
+    }
+
+
+    isHolding =
+        true;
+
+
+    holdStart =
+        performance.now();
+
+
+    holdButton.classList.add(
+        "holding"
+    );
+
+
+    requestAnimationFrame(
+        updateHold
+    );
+}
+
+
+function updateHold(now) {
+
+    if (!isHolding) {
+        return;
+    }
+
+
+    const elapsed =
+        now -
+        holdStart;
+
+
+    const progress =
+        Math.min(
+            1,
+            elapsed /
+            HOLD_DURATION
+        );
+
+
+    const degrees =
+        progress *
+        360;
+
+
+    holdProgress.style.background =
+        `
+        conic-gradient(
+            var(--pink) ${degrees}deg,
+            transparent ${degrees}deg
+        )
+        `;
+
+
+    if (
+        progress >= 1
+    ) {
+
+        finishHold();
+
+        return;
+    }
+
+
+    requestAnimationFrame(
+        updateHold
+    );
+}
+
+
+function cancelHold() {
+
+    isHolding =
+        false;
+
+
+    holdButton.classList.remove(
+        "holding"
+    );
+
+
+    holdProgress.style.background =
+        `
+        conic-gradient(
+            var(--pink) 0deg,
+            transparent 0deg
+        )
+        `;
+}
+
+
+function finishHold() {
+
+    isHolding =
+        false;
+
+
+    holdButton.classList.remove(
+        "holding"
+    );
+
+
+    holdProgress.style.background =
+        `
+        conic-gradient(
+            var(--pink) 360deg,
+            transparent 360deg
+        )
+        `;
+
+
+    showEnding();
+}
+
+
+holdButton.addEventListener(
+    "pointerdown",
+    (event) => {
+
+        event.preventDefault();
+
+        startHold();
+
+    }
+);
+
+
+holdButton.addEventListener(
+    "pointerup",
+    cancelHold
+);
+
+
+holdButton.addEventListener(
+    "pointercancel",
+    cancelHold
+);
+
+
+holdButton.addEventListener(
+    "pointerleave",
+    () => {
+
+        if (isHolding) {
+            cancelHold();
+        }
+
+    }
+);
+
+
+/* =========================================================
+   ENDING
+========================================================= */
+
+let endingShown =
+    false;
+
+
+function showEnding() {
+
+    if (endingShown) {
+        return;
+    }
+
+
+    endingShown =
+        true;
+
+
+    finalSection.classList.remove(
+        "visible"
+    );
+
+
+    memoryUI.classList.remove(
+        "visible"
+    );
+
+
+    scannerMessage.classList.add(
+        "hidden"
+    );
+
+
+    /*
+     * Let the particles become
+     * almost completely visible.
+     */
+
+    material.uniforms.uReveal.value =
+        1;
+
+
+    statusText.textContent =
+        "FOUND";
+
+
+    setTimeout(
+        () => {
+
+            ending.classList.add(
+                "visible"
+            );
+
+        },
+        1800
+    );
+}
+
+
+/* =========================================================
+   RESTART
+========================================================= */
+
+restartButton.addEventListener(
+    "click",
+    () => {
+
+        ending.classList.remove(
+            "visible"
+        );
+
+
+        endingShown =
+            false;
+
+        finalUnlocked =
+            false;
+
+        explorationStarted =
+            false;
+
+        photoFullySeen =
+            false;
+
+
+        visitedMemories.clear();
+
+
+        reveal =
+            0;
+
+
+        targetReveal =
+            0;
+
+
+        material.uniforms.uReveal.value =
+            0;
+
+
+        memoryUI.classList.remove(
+            "visible"
+        );
+
+
+        finalSection.classList.remove(
+            "visible"
+        );
+
+
+        intro.classList.add(
+            "active"
+        );
+
+
+        scannerMessage.classList.remove(
+            "hidden"
+        );
+
+
+        setTimeout(
+            () => {
+
+                introFinished =
+                    true;
+
+            },
+            1000
+        );
+
+
+        setMemory(
+            0,
+            true
+        );
+
+    }
+);
+
+
+/* =========================================================
+   RESIZE
+========================================================= */
+
+window.addEventListener(
+    "resize",
+    () => {
+
+        camera.aspect =
+            window.innerWidth /
+            window.innerHeight;
+
+
+        camera.updateProjectionMatrix();
+
+
+        renderer.setSize(
+            window.innerWidth,
+            window.innerHeight
+        );
+
+
+        renderer.setPixelRatio(
+            Math.min(
+                window.devicePixelRatio,
+                2
+            )
+        );
+
+
+        material.uniforms.uPixelRatio.value =
+            Math.min(
+                window.devicePixelRatio,
+                2
+            );
+
+    }
+);
+
+
+/* =========================================================
+   ANIMATION
+========================================================= */
+
+const clock =
+    new THREE.Clock();
+
+
+function animate() {
+
+    requestAnimationFrame(
+        animate
+    );
+
+
+    const elapsed =
+        clock.getElapsedTime();
+
+
+    material.uniforms.uTime.value =
+        elapsed;
+
+
+    /*
+     * Very slow universe rotation.
+     */
+
+    particles.rotation.y =
+        Math.sin(
+            elapsed * 0.04
+        ) * 0.08;
+
+
+    particles.rotation.x =
+        Math.cos(
+            elapsed * 0.035
+        ) * 0.025;
+
+
+    /*
+     * Background stars move
+     * almost imperceptibly.
+     */
+
+    stars.rotation.y =
+        elapsed * 0.003;
+
+
+    stars.rotation.x =
+        Math.sin(
+            elapsed * 0.01
+        ) * 0.02;
+
+
+    updateFragments();
+
+    updateReveal();
+
+    checkPhotoDiscovery();
+
+    markMemoryVisited();
+
+
+    renderer.render(
+        scene,
+        camera
+    );
+}
+
+
+animate();
+
+
+/* =========================================================
+   PRELOAD
+========================================================= */
+
+prepareImages();
+
+
+/* =========================================================
+   KEYBOARD SUPPORT
+========================================================= */
+
+window.addEventListener(
+    "keydown",
+    (event) => {
+
+        if (
+            event.code ===
+            "Space"
+        ) {
+
+            if (
+                finalSection.classList.contains(
+                    "visible"
+                )
+            ) {
+
+                event.preventDefault();
+
+                startHold();
+            }
+        }
+
+
+        if (
+            event.key === "1"
+        ) {
+
+            setMemory(0);
+        }
+
+
+        if (
+            event.key === "2"
+        ) {
+
+            setMemory(1);
+        }
+
+
+        if (
+            event.key === "3"
+        ) {
+
+            setMemory(2);
+        }
+
+    }
+);
+
+
+window.addEventListener(
+    "keyup",
+    (event) => {
+
+        if (
+            event.code ===
+            "Space"
+        ) {
+
+            cancelHold();
+        }
+
+    }
+);
+
+
+/* =========================================================
+   PREVENT ACCIDENTAL CONTEXT MENU
+========================================================= */
+
+canvas.addEventListener(
+    "contextmenu",
+    (event) => {
+
+        event.preventDefault();
+
+    }
+);
