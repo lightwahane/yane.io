@@ -1,157 +1,300 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#08020a">
-  <meta name="description" content="A private cinematic love story in a pink nebula universe.">
-  <title>Somewhere in the Universe</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@400;500&family=Great+Vibes&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <main id="experience" aria-label="Interactive cinematic love story">
-    <canvas id="stars" aria-hidden="true"></canvas>
-    <div class="nebula nebula-a" aria-hidden="true"></div>
-    <div class="nebula nebula-b" aria-hidden="true"></div>
-    <div class="nebula nebula-c" aria-hidden="true"></div>
-    <div class="grain" aria-hidden="true"></div>
+    <meta charset="UTF-8">
 
-    <section id="gate" class="gate scene active" aria-label="Start the experience">
-      <div class="gate-orbit orbit-1"></div>
-      <div class="gate-orbit orbit-2"></div>
-      <div class="cosmic-heart" aria-hidden="true">
-        <span></span>
-      </div>
-      <div class="gate-copy">
-        <p class="eyebrow">A little universe, made for you</p>
-        <h1>Somewhere in<br><em>this universe…</em></h1>
-        <p class="gate-sub">I found you.</p>
-      </div>
-      <button id="startButton" class="start-button" aria-label="Start the story and music">
-        <span class="play-icon"></span>
-        <span>enter the universe</span>
-      </button>
-      <p class="gate-note">sound on · headphones if you want to</p>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    >
+
+    <meta
+        name="description"
+        content="Something I couldn't explain."
+    >
+
+    <title>Something I Couldn't Explain</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"
+            }
+        }
+    </script>
+</head>
+
+<body>
+
+<div id="experience">
+
+    <!-- WEBGL -->
+    <canvas id="universe"></canvas>
+
+    <!-- VIGNETTE -->
+    <div class="vignette"></div>
+
+    <!-- GRAIN -->
+    <div class="grain"></div>
+
+    <!-- INTRO -->
+    <section id="intro" class="screen-layer active">
+
+        <div class="intro-content">
+
+            <div class="tiny-label">
+                00 / SOMETHING
+            </div>
+
+            <h1>
+                something<br>
+                is here.
+            </h1>
+
+            <p class="intro-hint">
+                move slowly.
+            </p>
+
+            <div class="mouse-symbol">
+                <span></span>
+            </div>
+
+        </div>
+
     </section>
 
-    <div id="story" class="story" aria-live="polite">
-      <section class="scene hero-scene" data-scene="0" data-duration="6500">
-        <div class="scene-inner center">
-          <p class="eyebrow reveal">For one person, somewhere out there</p>
-          <h2 class="display reveal delay-1">The universe is<br><em>very, very big.</em></h2>
-          <p class="soft-copy reveal delay-2">And somehow, it still managed to put you in my little corner of it.</p>
-        </div>
-      </section>
 
-      <section class="scene constellation-scene" data-scene="1" data-duration="7600">
-        <div class="constellation-lines" aria-hidden="true"></div>
-        <div class="scene-inner center">
-          <div class="floating-star star-one"></div>
-          <div class="floating-star star-two"></div>
-          <p class="eyebrow reveal">Then something changed</p>
-          <h2 class="display reveal delay-1">Two tiny points<br>became <em>one constellation.</em></h2>
-          <p class="soft-copy reveal delay-2">Not because the stars moved.<br>Because I started noticing yours.</p>
-        </div>
-      </section>
+    <!-- HIDDEN FRAGMENTS -->
 
-      <section class="scene interaction-scene" data-scene="2" data-duration="0" data-requires-interaction="true">
-        <div class="scene-inner center">
-          <p class="eyebrow reveal">There is a small secret here</p>
-          <h2 class="display reveal delay-1">Come a little<br><em>closer.</em></h2>
-          <button id="lightButton" class="light-orb" aria-label="Touch the glowing star">
-            <span class="orb-core"></span>
-            <span class="orb-ring"></span>
-          </button>
-          <div class="gesture">
-            <span class="finger"></span>
-            <span class="gesture-copy">touch the light</span>
-          </div>
-        </div>
-      </section>
+    <div id="fragmentLayer">
 
-      <section class="scene photo-scene" data-scene="3" data-duration="9000">
-        <div class="memory-glow"></div>
-        <div class="photo-frame photo-one">
-          <img src="https://raw.githubusercontent.com/lightwahane/ana.github.io/refs/heads/main/photo1.jpg" alt="A memory">
-          <div class="photo-shine"></div>
-        </div>
-        <div class="scene-inner photo-copy">
-          <p class="eyebrow reveal">And then there were moments</p>
-          <p class="photo-line reveal delay-1">The kind I wish<br>time would slow down for.</p>
-        </div>
-      </section>
+        <span class="fragment fragment-1">
+            your laugh
+        </span>
 
-      <section class="scene photo-scene second-photo" data-scene="4" data-duration="9000">
-        <div class="photo-frame photo-two">
-          <img src="https://raw.githubusercontent.com/lightwahane/ana.github.io/refs/heads/main/photo2.jpg" alt="Another memory">
-          <div class="photo-shine"></div>
-        </div>
-        <div class="scene-inner photo-copy lower">
-          <p class="eyebrow reveal">Because some memories</p>
-          <p class="photo-line reveal delay-1">feel warmer<br>than the stars.</p>
-        </div>
-      </section>
+        <span class="fragment fragment-2">
+            that one night
+        </span>
 
-      <section class="scene reveal-photo-scene" data-scene="5" data-duration="0" data-requires-interaction="true">
-        <div class="veil"></div>
-        <div class="photo-frame hidden-photo">
-          <img src="https://raw.githubusercontent.com/lightwahane/ana.github.io/refs/heads/main/photo3.JPG" alt="A final memory">
-        </div>
-        <div class="scene-inner center">
-          <p class="eyebrow reveal">One more thing</p>
-          <h2 class="display reveal delay-1">Some things<br>are worth <em>revealing.</em></h2>
-          <div class="drag-target" id="dragTarget" role="button" tabindex="0" aria-label="Drag the light across the stars to reveal the memory">
-            <span class="drag-handle"></span>
-          </div>
-          <div class="gesture drag-gesture">
-            <span class="finger"></span>
-            <span class="gesture-copy">follow the light</span>
-          </div>
-        </div>
-      </section>
+        <span class="fragment fragment-3">
+            5:47 PM
+        </span>
 
-      <section class="scene quiet-scene" data-scene="6" data-duration="7200">
-        <div class="scene-inner center">
-          <p class="eyebrow reveal">And if I could choose</p>
-          <h2 class="display reveal delay-1">I'd choose<br><em>you. Again.</em></h2>
-          <p class="soft-copy reveal delay-2">Across every version of this universe.<br>Across every impossible distance.</p>
-        </div>
-      </section>
+        <span class="fragment fragment-4">
+            I remember this.
+        </span>
 
-      <section class="scene final-scene" data-scene="7" data-duration="0" data-requires-interaction="true">
-        <div class="final-heart-field" aria-hidden="true"></div>
-        <div class="final-orbit" aria-hidden="true"></div>
-        <div class="scene-inner center">
-          <p class="eyebrow reveal">You've come this far…</p>
-          <h2 class="display reveal delay-1">One last little<br><em>thing.</em></h2>
-          <button id="finalButton" class="final-button" aria-label="Hold to reveal the final message">
-            <span class="hold-progress"></span>
-            <span class="final-heart">♡</span>
-          </button>
-          <div class="gesture hold-gesture">
-            <span class="finger"></span>
-            <span class="gesture-copy">don't let go yet</span>
-          </div>
-          <div id="finalMessage" class="final-message" aria-hidden="true">
-            <p class="eyebrow">My favorite place in the universe</p>
-            <h2>You.</h2>
-            <p>Whatever happens next,<br>I hope I get to keep finding you.</p>
-            <span class="signature">— always, me ♡</span>
-          </div>
-        </div>
-      </section>
+        <span class="fragment fragment-5">
+            don't move
+        </span>
+
+        <span class="fragment fragment-6">
+            somehow...
+        </span>
+
+        <span class="fragment fragment-7">
+            this felt different.
+        </span>
+
+        <span class="fragment fragment-8">
+            stay here.
+        </span>
+
     </div>
 
-    <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
-    <div class="scene-counter" aria-hidden="true"><span id="sceneNumber">01</span> / 08</div>
-  </main>
 
-  <audio id="music" preload="auto" loop>
-    <source src="https://github.com/lightwahane/meow.github.io/raw/refs/heads/main/love.mp3" type="audio/mpeg">
-  </audio>
-  <script src="script.js"></script>
+    <!-- TOP HUD -->
+
+    <header class="hud">
+
+        <div class="hud-left">
+            <span class="hud-dot"></span>
+            <span id="statusText">SEARCHING</span>
+        </div>
+
+        <button id="soundButton" class="sound-button">
+            <span class="sound-icon">♪</span>
+            <span id="soundText">sound off</span>
+        </button>
+
+    </header>
+
+
+    <!-- SCANNER MESSAGE -->
+
+    <div id="scannerMessage" class="scanner-message">
+
+        <span class="scanner-small">
+            MOVE THROUGH THE DUST
+        </span>
+
+        <span class="scanner-big">
+            there are memories<br>
+            hiding here.
+        </span>
+
+    </div>
+
+
+    <!-- MEMORY UI -->
+
+    <section id="memoryUI" class="memory-ui">
+
+        <div class="memory-header">
+
+            <div>
+                <span class="section-number">
+                    MEMORY
+                </span>
+
+                <h2 id="memoryTitle">
+                    before I knew
+                </h2>
+            </div>
+
+            <div class="memory-counter">
+                <span id="currentMemory">01</span>
+                <span class="counter-line"></span>
+                <span>03</span>
+            </div>
+
+        </div>
+
+
+        <div class="memory-description" id="memoryDescription">
+            Some moments don't announce themselves.
+            You only realize later that you wanted
+            to keep them forever.
+        </div>
+
+
+        <div class="memory-controls">
+
+            <button
+                class="memory-button active"
+                data-memory="0"
+            >
+                <span>01</span>
+                <i></i>
+            </button>
+
+            <button
+                class="memory-button"
+                data-memory="1"
+            >
+                <span>02</span>
+                <i></i>
+            </button>
+
+            <button
+                class="memory-button"
+                data-memory="2"
+            >
+                <span>03</span>
+                <i></i>
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <!-- PHOTO INSTRUCTION -->
+
+    <div id="photoHint" class="photo-hint">
+
+        <div class="scan-ring"></div>
+
+        <span>
+            move over the light
+        </span>
+
+    </div>
+
+
+    <!-- FINAL HOLD -->
+
+    <section id="finalSection" class="final-section">
+
+        <div class="final-content">
+
+            <div class="final-label">
+                I THINK I FOUND IT.
+            </div>
+
+            <h2>
+                hold<br>
+                the light.
+            </h2>
+
+            <p>
+                don't let go yet.
+            </p>
+
+            <button id="holdButton" class="hold-button">
+
+                <span class="hold-progress"></span>
+
+                <span class="hold-text">
+                    HOLD
+                </span>
+
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <!-- FINAL MESSAGE -->
+
+    <section id="ending" class="ending">
+
+        <div class="ending-content">
+
+            <div class="ending-eyebrow">
+                THERE WAS NEVER REALLY A QUESTION.
+            </div>
+
+            <div class="ending-particle-title">
+                <span>it was</span>
+                <strong>you.</strong>
+            </div>
+
+            <p class="ending-message">
+                Out of everything that could have happened,<br>
+                somehow I got you.
+            </p>
+
+            <p class="ending-small">
+                And that's the part I still can't explain.
+            </p>
+
+            <div class="ending-heart">
+                <span>♡</span>
+            </div>
+
+            <button id="restartButton">
+                begin again
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <!-- MOBILE HELP -->
+
+    <div id="mobileHint">
+        touch and move slowly
+    </div>
+
+</div>
+
+
+<script type="module" src="script.js"></script>
+
 </body>
 </html>
